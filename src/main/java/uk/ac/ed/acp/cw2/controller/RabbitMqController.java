@@ -1,97 +1,103 @@
 package uk.ac.ed.acp.cw2.controller;
 
-
-import com.rabbitmq.client.DeliverCallback;
-import org.apache.kafka.clients.producer.ProducerRecord;
+import com.google.gson.Gson;
+import com.rabbitmq.client.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import uk.ac.ed.acp.cw2.data.RuntimeEnvironment;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * RabbitMqController is a REST controller that provides endpoints for sending and receiving stock symbols
- * through RabbitMQ. This class interacts with a RabbitMQ environment which is configured dynamically during runtime.
- */
-@RestController()
-@RequestMapping("/api/v1/rabbitmq")
+@RestController
 public class RabbitMqController {
 
     private static final Logger logger = LoggerFactory.getLogger(RabbitMqController.class);
     private final RuntimeEnvironment environment;
-    private final String[] stockSymbols = "AAPL,MSFT,GOOG,AMZN,TSLA,JPMC,CATP,UNIL,LLOY".split(",");
-
-    private ConnectionFactory factory = null;
+    private final Gson gson = new Gson();
 
     public RabbitMqController(RuntimeEnvironment environment) {
         this.environment = environment;
-        factory = new ConnectionFactory();
-        factory.setHost(environment.getRabbitMqHost());
-        factory.setPort(environment.getRabbitMqPort());
     }
 
+    @PutMapping("rabbitMq/{queueName}/{messageCount}")
+    public ResponseEntity<Void> writeToRabbitMq(@PathVariable String queueName, @PathVariable int messageCount) {
+        logger.info("Writing {} messages to RabbitMQ queue: {}", messageCount, queueName);
 
-    public final String StockSymbolsConfig = "stock.symbols";
-
-    @PostMapping("/sendStockSymbols/{queueName}/{symbolCount}")
-    public void sendStockSymbols(@PathVariable String queueName, @PathVariable int symbolCount) {
-        logger.info("Writing {} symbols in queue {}", symbolCount, queueName);
+        ConnectionFactory factory = new ConnectionFactory();
+        factory.setHost(environment.getRabbitMqHost());
+        factory.setPort(environment.getRabbitMqPort());
 
         try (Connection connection = factory.newConnection();
              Channel channel = connection.createChannel()) {
 
             channel.queueDeclare(queueName, false, false, false, null);
 
-            for (int i = 0; i < symbolCount; i++) {
-                final String symbol = stockSymbols[new Random().nextInt(stockSymbols.length)];
-                final String value = String.valueOf(i);
+            for (int i = 0; i < messageCount; i++) {
+                Map<String, Object> message = new HashMap<>();
+                message.put("uid", "s1234567"); // Replace with your student ID
+                message.put("counter", i);
 
-                String message = String.format("%s:%s", symbol, value);
-
-                channel.basicPublish("", queueName, null, message.getBytes());
-                System.out.println(" [x] Sent message: " + message + " to queue: " + queueName);
+                String messageJson = gson.toJson(message);
+                channel.basicPublish("", queueName, null, messageJson.getBytes(StandardCharsets.UTF_8));
+                logger.info("Sent message {} to queue {}", messageJson, queueName);
             }
 
-            logger.info("{} record(s) sent to Kafka\n", symbolCount);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+            return ResponseEntity.ok().build();
+        } catch (IOException | TimeoutException e) {
+            logger.error("Error while writing to RabbitMQ", e);
+            throw new RuntimeException("Failed to write to RabbitMQ", e);
         }
     }
 
-    @GetMapping("/receiveStockSymbols/{queueName}/{consumeTimeMsec}")
-    public List<String> receiveStockSymbols(@PathVariable String queueName, @PathVariable int consumeTimeMsec) {
-        logger.info(String.format("Reading stock-symbols from queue %s", queueName));
-        List<String> result = new ArrayList<>();
+    @GetMapping("rabbitMq/{queueName}/{timeoutInMsec}")
+    public ResponseEntity<List<String>> readFromRabbitMq(@PathVariable String queueName, @PathVariable int timeoutInMsec) {
+        logger.info("Reading from RabbitMQ queue: {} with timeout: {}ms", queueName, timeoutInMsec);
+
+        ConnectionFactory factory = new ConnectionFactory();
+        factory.setHost(environment.getRabbitMqHost());
+        factory.setPort(environment.getRabbitMqPort());
+
+        List<String> messages = new ArrayList<>();
 
         try (Connection connection = factory.newConnection();
              Channel channel = connection.createChannel()) {
 
+            channel.queueDeclare(queueName, false, false, false, null);
 
-            DeliverCallback deliverCallback = (consumerTag, delivery) -> {
-                String message = new String(delivery.getBody(), StandardCharsets.UTF_8);
-                System.out.printf("[%s]:%s -> %s", queueName, delivery.getEnvelope().getRoutingKey(), message);
-                result.add(message);
-            };
+            // Set the end time for polling
+            long endTime = System.currentTimeMillis() + timeoutInMsec;
 
-            System.out.println("start consuming events - to stop press CTRL+C");
-            // Consume with Auto-ACK
-            channel.basicConsume(queueName, true, deliverCallback, consumerTag -> {});
-            Thread.sleep(consumeTimeMsec);
+            while (System.currentTimeMillis() < endTime) {
+                GetResponse response = channel.basicGet(queueName, true);
+                if (response == null) {
+                    // No message available, wait a bit and try again
+                    Thread.sleep(100);
+                    continue;
+                }
 
-            System.out.printf("done consuming events. %d record(s) received\n", result.size());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+                String message = new String(response.getBody(), StandardCharsets.UTF_8);
+                logger.info("Received message: {}", message);
+                messages.add(message);
+            }
+
+            // Ensure we don't exceed the timeout by more than 200ms
+            if (System.currentTimeMillis() > endTime + 200) {
+                logger.warn("Exceeded timeout by more than 200ms");
+            }
+
+            return ResponseEntity.ok(messages);
+        } catch (IOException | TimeoutException | InterruptedException e) {
+            logger.error("Error while reading from RabbitMQ", e);
+            throw new RuntimeException("Failed to read from RabbitMQ", e);
         }
-
-        return result;
     }
 }

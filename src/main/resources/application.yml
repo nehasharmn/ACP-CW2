@@ -2,12 +2,11 @@ spring:
   application:
     name: acpCw2Service
 
-
-info:
-  app:
-    name: ACP CW2
-    description: Simple ACP CW2 service
-    version: 0.0.3
+server:
+  port: 8080
+  error:
+    whitelabel:
+      enabled: false
 
 management:
   endpoints:
@@ -17,12 +16,13 @@ management:
   info:
     env:
       enabled: true
-
   endpoint:
     health:
       show-details: always
       probes:
         enabled: true
-server:
-  port: 8080
 
+logging:
+  level:
+    uk.ac.ed.acp.cw2: INFO
+    org.springframework: WARN

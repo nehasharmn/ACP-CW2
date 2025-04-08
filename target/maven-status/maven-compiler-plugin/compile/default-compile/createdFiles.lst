@@ -1,0 +1,13 @@
+uk\ac\ed\acp\cw2\configuration\AppConfig.class
+uk\ac\ed\acp\cw2\controller\CacheController.class
+uk\ac\ed\acp\cw2\controller\TransformController.class
+uk\ac\ed\acp\cw2\model\TransformMessagesRequest.class
+uk\ac\ed\acp\cw2\controller\MongoDbController.class
+uk\ac\ed\acp\cw2\data\RuntimeEnvironment.class
+uk\ac\ed\acp\cw2\controller\RabbitMqController.class
+uk\ac\ed\acp\cw2\controller\KafkaController.class
+uk\ac\ed\acp\cw2\controller\ErrorHandler.class
+uk\ac\ed\acp\cw2\controller\ServiceController.class
+uk\ac\ed\acp\cw2\controller\MessageProcessorController.class
+uk\ac\ed\acp\cw2\model\ProcessMessagesRequest.class
+uk\ac\ed\acp\cw2\Application.class

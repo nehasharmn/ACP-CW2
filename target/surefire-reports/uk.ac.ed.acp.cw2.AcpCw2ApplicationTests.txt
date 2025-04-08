@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: uk.ac.ed.acp.cw2.AcpCw2ApplicationTests
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 10.38 s -- in uk.ac.ed.acp.cw2.AcpCw2ApplicationTests

@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>uk.ac.ed</groupId>
-    <artifactId>AcpCw2Template</artifactId>
+    <artifactId>acp_submission_2</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>AcpCw2Template</name>
-    <description>AcpCw2Template</description>
+    <name>acp_submission_2</name>
+    <description>ACP Assignment 2 Submission</description>
     <properties>
         <java.version>17</java.version>
     </properties>

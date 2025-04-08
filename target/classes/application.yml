@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: acpCw2Service
+
+server:
+  port: 8080
+  error:
+    whitelabel:
+      enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: info, health, env
+  info:
+    env:
+      enabled: true
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+
+logging:
+  level:
+    uk.ac.ed.acp.cw2: INFO
+    org.springframework: WARN
